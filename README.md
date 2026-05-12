@@ -53,3 +53,86 @@ Exemple de requête POST sur /predict :
 `{`
    ` "text": "Bonjour, je n'arrive pas à me connecter à mon tableau de bord depuis ce matin."`
 `}`
+
+## 5. Procédure de lancement avec Docker
+
+### Prérequis
+* Docker Desktop installé.
+* Un fichier `.env` à la racine contenant votre token Hugging Face : `HF_TOKEN=hf_your_token_here`
+
+### Installation et Exécution
+- **Construire l'image Docker :**
+   ```bash
+   docker build -t fastia-model:v1 .
+   ```
+
+- **Lancer le conteneur :**
+   ```Bash
+
+   docker run -p 8000:8000 --env-file .env fastia-model:v1
+   ```
+   L'API sera accessible sur http://localhost:8000
+
+### Description des Endpoints
+## GET /health
+Vérifie l'état de l'API et confirme si le modèle est chargé sur CPU ou GPU.
+
+**Exemple de réponse :**
+```json
+{
+  "status": "healthy",
+  "device": "cpu",
+  "model_loaded": "./model_final/run2"
+}
+```
+
+---
+
+## POST /predict
+Analyse un texte et retourne une classification structurée.
+
+### Corps de la requête (JSON)
+```json
+{
+  "text": "Mon écran reste noir quand j'allume mon PC"
+}
+```
+
+### Réponse (JSON)
+```json
+{
+  "categorie": "Support technique",
+  "priorite": "haute",
+  "reponse_suggeree": "Texte généré par le modèle..."
+}
+```
+
+## Système de Logs
+L'API intègre un système de journalisation robuste avec **Loguru** :
+
+* **Sorties :** Console Docker et fichier local `logs/api.log`.
+*le dossier logs sera généré automatiquement*
+* **Rotation :** Nouveau fichier tous les 10 Mo pour éviter la saturation disque.
+* **Rétention :** Historique conservé pendant 80 jours.
+
+### Informations suivies :
+* Temps de traitement de chaque prédiction (latence en ms).
+* Détail des entrées (*input*) et des sorties (*output*).
+* Alertes en cas de génération de JSON invalide par le modèle.
+
+---
+
+## 4. Procédure d'exécution des tests
+Les tests vérifient la robustesse de l'API (codes de retour, format des données, gestion des erreurs).
+
+### Lancer les tests
+Assurez-vous d'avoir installé les dépendances de test (`pytest`, `httpx`), puis lancez :
+
+```bash
+pytest tests/ -v
+```
+
+### Couverture des tests
+1.  **Validation du statut 200** sur les endpoints.
+2.  **Vérification de la catégorie :** s'assure que la catégorie retournée appartient à la liste officielle.
+3.  **Test de résistance :** vérification du comportement face aux entrées vides ou non textuelles (Erreur 422 ou 500).
